@@ -1,6 +1,6 @@
 ---
 title: "Assignment 4 - Model fitting"
-author: "FILL IN YOUR FULL NAME"
+author: "Abhipsha Mahapatro"
 date: "`r format(Sys.time(), '%B %d, %Y | %H:%M:%S | %Z')`"
 output:
   html_document:
@@ -9,6 +9,8 @@ output:
     highlight: tango
     number_sections: no
     theme: cosmo
+    toc: no
+  pdf_document:
     toc: no
 ---
   
@@ -23,12 +25,28 @@ knitr::opts_chunk$set(echo = TRUE,
                       message = FALSE,
                       warning = FALSE,
                       comment = NA)
+
 ```
 
 ***
 
 ```{r, include = T}
-# LOAD THE PACKAGES YOU ARE USING IN THIS CODE CHUNK library(nameofpackage)
+library(tidyverse)
+library(dplyr)
+library(readr)
+library(ggplot2)
+library(lmtest)
+library(haven)
+library(reshape)
+library(descr)
+library(gtsummary)
+library(sjmisc)
+library(sjlabelled)
+library(sjPlot)
+library(purrr)
+library(modelsummary) 
+library(broom.mixed)
+
 ```
 
 <br>
@@ -37,60 +55,193 @@ knitr::opts_chunk$set(echo = TRUE,
 
 ### Task 1 - Pruning the news feed [15 points in total]
 
-In her article ["Pruning the news feed: Unfriending and unfollowing political content on social media" (Research & Politics 2016)](https://doi.org/10.1177/2053168016661873), Leticia Bode explores the extent to which users exercise control over their social media experiences, and who tends to engage in avoidance of political information by unfriending people who post about politics on social media. In the following, you are asked to reproduce some of her findings presented in the paper. To do so, check out the paper (accessible under the link above; ungated) and work with the dataset `bode-pew-data.sav` that you find in your assignment repository.
+In her article ["Pruning the news feed: Unfriending and unfollowing political content on soc al media" (Research & Politics 2016)](https://doi.org/10.1177/2053168016661873), Leticia Bode explores the extent to which users exercise control over their social media experiences, and who tends to engage in avoidance of political information by unfriending people who post about politics on social media. In the following, you are asked to reproduce some of her findings presented in the paper. To do so, check out the paper (accessible under the link above; ungated) and work with the dataset `bode-pew-data.sav` that you find in your assignment repository.
 
 a) Reproduce **Figure 1**. Note that the corresponding variables in the dataset are named `ufptm`, `ufdo`, `ufa`, `ufdy`, `ufwo` (in the order that is shown in the original plot). The original plot has some bad/ugly features. When reproducing the figure, improve over the original design, and justify your design choices. [3 points]
 
-```{r}
-# YOUR CODE SHOULD GO HERE.
+```{r setup}
+#read your data 
+#bode_pew_data
+setwd("C:/Users/dell/Documents/GitHub/assignments/assignment-4-setup")
+data <- read_sav("bode-pew-data.sav")
+pew_plot1 <- subset(data, select = c(psraid, ufptm, ufdo, ufa, ufdy, ufwo))
+pew_plot1 <-as.data.frame(pew_plot1)
+pew_plot1 <- melt(pew_plot1, measure.vars = c("ufptm", "ufdo", "ufa", "ufdy", "ufwo"))
+
+pew_plot1 <- na.omit(pew_plot1)
+
+pew_plot1 <- pew_plot1 %>%
+  group_by(variable, value) %>%
+  summarise(n = n()) %>%
+  mutate(freq = (n / sum(n))*100) 
+
+
+pew_plot1 <- subset(pew_plot1, pew_plot1$value==1)
+
+#pew_plot1$variable <- factor(pew_plot1$variable, levels = pew_plot1$variable)
+
+ggplot(pew_plot1, aes(x = reorder(variable, freq), y = freq)) +
+  geom_col(width = 0.5, fill = "steel blue") + theme_minimal() +scale_x_discrete(labels=c("ufptm"="Posting too much", "ufdo"="You disagree with them", "ufa"="They argued with you", "ufwo"="Worried they'll offend friends","ufdy"="They disagreed with you")) + labs (title = "Fig 1: Reasons for unfriending on social media",
+              subtitle = "(Categories not mutually exclusive)",
+              x = "Reason for unfriending", y = "Freqeuncy (in %)") + coord_flip()
+
 ```
 
 <div class = "answer">
-YOUR JUSTIFICATION SHOULD GO HERE.
+1. Added a clarification about categories not being mutually exclusive. This was not clearly mentioned in the text or on the graph. I believe it is important for readers to know this fact, otherwise the frequency could be misinterpreted as adding upto a 100. 
+
+2. Arranged the reasons according to the frequency (Most frequent reason first). Standard design feature for bar charts of this nature.  
+
+3. Added axis labels. Reader shouldn't have to go looking for this information outside the graph. 
+
+4.Flipped the coordinates: For improving readability of the reason for unfriending. It appeared cluttered at the bottom of the graph earlier. Now presented in a clean fashion.  
+
+5. Edited title as "...unfriending on social media" from "unfriending in social media" to incorporate the standard usage of the phrase.
 </div>
 
 <br>
 
 b) Reproduce the results from **Table 1** and present them in a clean table that is at least as informative as the original one. Discuss deviations from the original results if there are any. [3 points]
 
-```{r}
-# YOUR CODE SHOULD GO HERE.
+```{r, set seed}
+set.seed(23783)
+reg1 <- glm(unfriendscale~ 
+         gender+
+         age+
+         educ+
+         hisp+
+         nonwhite+
+         statedinc+
+         party3+
+         ideostrength+
+         talkpol+
+         polfbmotiv+
+         friendspostpol+
+       disagree, data = data, family = gaussian)
+
+summary(reg1)
+Table1 <-tab_model(reg1, 
+          pred.labels = c("Intercept", "Gender(f)",  "Age", "Education", "Hispanic", "Non White", "Income", "Party", "Ideology strength",  "Talk politics", "Political social networking site motives", "Friends post politics", "Perceived disagreement"), 
+                          dv.labels = "Predict Political Unfriending")
+
+print(Table1)
+
+
 ```
 
 <div class = "answer">
-YOUR DISCUSSION SHOULD GO HERE.
+There are slight deviations in this result as compared to the main paper. Slight differences in the estimates for variables like gender, age, education and can be reported. This could be because of the difference of n. The total observations in the original table are 2078 and in this table it is 602. I have also removed the label of "dependent variable" from 'party' variable as has been done in the main paper because it is misleading. 
 </div>
 
 <br>
 
 c) Offer a visual representation of the results provided in Table 1 using a well-designed coefficient plot. [2 points]
 
-```{r}
-# YOUR CODE SHOULD GO HERE.
+```{r, function}
+library(jtools)
+library(ggstance)
+model1 <- plot_model(reg1, auto.label = FALSE)
+
+print(model1)
+
 ```
 
 <br>
 
 d) Run `lm` models for all possible combinations of covariates from the original model and store the estimates. Then, provide visual evidence how the estimates for the four key predictors of interest (linked to H1A, H1B, H2, and H3) vary across those specifications, and briefly discuss your findings. [3 points]
 
-```{r}
-# YOUR CODE SHOULD GO HERE.
+```{r, ggplot}
+#
+#define dependent variable and covariate set
+
+depvar <- "unfriendscale"
+covars <- c("gender", "age", "educ", "hisp", "nonwhite", "statedinc", "party3", "ideostrength", "talkpol", "polfbmotiv", "friendspostpol", "disagree")
+combinations <- 
+  map(1:12, function(x) {combn(1:12, x)}) %>%
+map(ncol) %>%
+unlist()%>%
+  sum()
+
+combn_models <- function(depvar, covars, data)
+{
+  combn_list <- list()
+  # generate list of covariate combinations
+  for (i in seq_along(covars)) {
+    combn_list[[i]] <- combn(covars, i, simplify = FALSE)
+  }
+  combn_list <- unlist(combn_list, recursive = FALSE)
+  # function to generate formulas
+  gen_formula <- function(covars, depvar) {
+    form <- as.formula(paste0(depvar, " ~ ", paste0(covars, collapse = "+")))
+    form
+  }
+  # generate formulas
+  formulas_list <- purrr::map(combn_list, gen_formula, depvar = depvar)
+  # run models
+  models_list <- purrr::map(formulas_list, lm, data = data)
+  models_list
+}
+
+models_list <- combn_models(depvar = depvar,  covars = covars, data = sample_n(data, 2253))
+length(models_list)
+models_list[[1]]
+
+models_list <- combn_models(depvar = depvar,  covars = covars, data = data)
+length(models_list)
+
+models_broom <- map(models_list, broom::tidy)
+models_broom[[1]]
+
+models_broom_df <- map_dfr(models_broom, rbind)
+models_broom_df %>% 
+  filter(!str_detect(term, "Intercept|carrier")) %>%
+  ggplot(aes(estimate)) + 
+  geom_histogram(binwidth = .1, color = "red") + 
+  geom_vline(xintercept = 0, linetype="dashed") + 
+  facet_grid(cols = vars(term), scales = "free_y") + 
+  theme_minimal()
 ```
 
 <div class = "answer">
-YOUR DISCUSSION SHOULD GO HERE.
+the variables to be considered for the H1A, H1b, H2, and H3 are ideostrength, talkpol, polfbmotiv and disagree respectively. From the graph above we see that the strength of all four of the variables is nearly the same. 
 </div>
 
 <br>
 
 e) Run a specification curve analysis for one of the four effects of interest. When doing so, come up with (a) an alternative measure of the response (can be just a transformation of the original measure), (b) an alternative key predictor measure (can be just a transformation of the original measure), and (c) different subsets of the data. More plausible criteria to generate alternative specifications are possible. Briefly discuss the results.  [4 points]
 
-```{r}
-# YOUR CODE SHOULD GO HERE.
+```{r, specr}
+library(specr)
+
+setup_specs(
+  y = c("unfriendscale"),
+  # We add an additional dependent variable
+  x = c("talkpol", "ideostrength", "polfbmotiv", "disagree"),
+  # We are not sure which independent variable is better
+  model = c("lm", "glm"),
+  # We only use linear model or more complicated one
+  controls = c("gender", "age", "educ", "hisp"))
+
+
+
+results <- run_specs (df = data, 
+                     y = c("unfriendscale"),               
+                     x = c("talkpol", "ideostrength", "polfbmotiv", "disagree"),  
+                     model = c("lm", "glm"),          
+                     controls = c("gender", "age", "educ", "hisp"),
+                     subsets = list(developed = unique(na.omit(data$developed))))
+                                    
+
+plot_decisiontree(results, legend = TRUE)
+
+
+#another way of visualising the results 
+plot_specs(results)
+
 ```
 
 <div class = "answer">
-YOUR DISCUSSION SHOULD GO HERE.
+I use talkpol from the four predictors in the previous question to run my specification curve analysis. In the graph we see that the covariates dont really exert a big influence on the outcome variable. 
 </div>
 
 <br>
@@ -103,10 +254,34 @@ It's Friday evening and your somewhat nerdy friend visits you in your apartment.
 
 You decide to help your friend because she's promised to help you with your public policy assignment in return. What is your solution?
  
-```{r}
-# YOUR CODE SHOULD GO HERE.
+```{r, broom}
+#read data
+prediction <- read.csv ('PrEdIcTiOn.csv')
+
+#multiple scenarios
+combo <- modelr::formulas(~y,
+                           "Bi_1" = ~ c1,
+                           "Bi_2" = ~c2,
+                           "Bi_3" = ~c3,
+                           "Bi_4" = ~c4,
+                           "Bi_5" = ~c5,
+                           "Bi_6" = ~c6,
+                           "Bi_7" = ~c7,
+                           "Bi_8" = ~c8,
+                           "Bi_9" = ~c9, 
+                           "Bi_10" = ~c10,
+                           "M_1" = ~c1+c2+c3+c4+c5+c6+c7+c8+c9+c10,
+                           "M_2" = ~c2+c1+c3+c4+c5+c6+c7+c8+c9+c10,
+                           "M_3" = ~c3+c1+c2+c4+c5+c6+c7+c8+c9+c10,
+)
+                             
+multi2 <- combo %>% 
+  map(lm, data = prediction)
+
+
+modelsummary(multi2, stars = TRUE)
 ```
 
 <div class = "answer">
-YOUR ANSWER SHOULD GO HERE.
+At 1.421 with a p value of less than 0.05, c8 shows the strongest effect in presenting the outcomes for y. We come to this answer by running multiple regressions for all the predictors, individually and then in different combinations. In the multi regressions, we note that the LogLikehood values are the same for all three models, as are the adjusted R square values. Since both these parameteres tell us about a better fit of the model, we can conclude that neither of the multivariate regressions predict y better than the other. C8 however does show the greatest and most significant effect. 
 </div>
