@@ -1,7 +1,7 @@
 ---
 title: "Assignment 5 - Visualization"
-author: "FILL IN YOUR FULL NAME"
-date: "`r format(Sys.time(), '%B %d, %Y | %H:%M:%S | %Z')`"
+author: "Abhipsha Mahapatro"
+date: "10:59pm, 21/11/2021"
 output:
   html_document:
     code_folding: show
@@ -29,6 +29,17 @@ knitr::opts_chunk$set(echo = TRUE,
 
 ```{r, include = T}
 # LOAD THE PACKAGES YOU ARE USING IN THIS CODE CHUNK
+library(ggplot2)
+library(tidyverse)
+library(dplyr)
+library(nycflights13)
+library(ggrepel)
+library(gridExtra)
+library(grid)
+library(reshape)
+library(hrbrthemes)
+library(readr)
+library(viridis)
 ```
 
 <br>
@@ -48,6 +59,22 @@ a) Select one of those principles and illustrate it as follows: [5 points]
   
 ```{r}
 # YOUR CODE HERE
+
+# principle Use readable fonts and font sizes 
+p1 <- ggplot(mtcars, aes(mpg, wt, colour = cyl)) + geom_point()
+
+p2<- ggplot(mtcars, aes(mpg, wt, colour=cyl)) + ggtitle("10. Label axes properly") + xlab("Miles per Gallon") + ylab("Weight in half US tonnes") + geom_point() + 
+  labs(caption = "The right plot explains 
+  the x and y axis depicts & 
+  indicates the units used in the data.")
+
+
+gridExtra::grid.arrange(p1, p2, nrow = 1)
+
+#saving the plot 
+
+plotfinal <- arrangeGrob(p1, p2, nrow=1)
+ggsave(file="Plot Labelling.pdf", plotfinal)
 ```
 
 <br>
@@ -55,7 +82,39 @@ a) Select one of those principles and illustrate it as follows: [5 points]
 b) Now, come up with another principle of good data visualization **that is not listed on the slide** and illustrate it following the instructions in the previous task. [5 points]
 
 ```{r}
-# YOUR CODE HERE
+# YOUR CODE HERE 
+
+iris2 <- melt(iris, id.vars="Species")
+iris2[1:3,]
+
+bar1 <- ggplot(data=iris2, aes(x=Species, y=value, fill=variable))
+bar11 <- bar1 + geom_bar(width = 0.8,stat="summary", position = position_dodge(width=1),colour="black")+
+  scale_fill_manual(values=c("white","white","white","white"),
+                    name="Iris\nMeasurements",
+                    breaks=c("Sepal.Length", "Sepal.Width", "Petal.Length", "Petal.Width"),
+                    labels=c("Sepal Length", "Sepal Width", "Petal Length", "Petal Width"))+theme_classic()
+
+bar2 <- ggplot(data=iris2, aes(x=Species, y=value, fill=variable))
+bar22<- bar2 + geom_bar(stat="identity", position = position_dodge()) + 
+  scale_fill_manual(values=c("orange", "blue", "darkgreen", "purple"),
+                    name="Iris\nMeasurements",
+                    breaks=c("Sepal.Length", "Sepal.Width", "Petal.Length", "Petal.Width"),
+                    labels=c("Sepal Length", "Sepal Width", "Petal Length", "Petal Width"))+theme_classic()+
+                    ggtitle("Avoid line Drawings")+
+                    labs(caption = "The right bar plot has distinct colours and
+                    space between bars which makes it easier to read")
+                    
+
+
+
+gridExtra::grid.arrange(bar11, bar22, nrow = 1)
+
+
+#saving the plot 
+myplot <- arrangeGrob(bar11, bar22, nrow=1)
+ggsave(file="Nolinegraphs.pdf", myplot)
+
+
 ```
 
 
@@ -71,6 +130,41 @@ a) Download the data and reproduce the plot as closely as possible using only th
 
 ```{r}
 # YOUR CODE HERE
+
+data_lehe <- read_csv("life-expectancy-vs-health-expenditure.csv", col_types = list("Health Expenditure and Financing (per capita) (OECDstat (2017))" = col_character()))
+
+#recode column names for ease 
+colnames(data_lehe)[which(names(data_lehe) == "Health Expenditure and Financing (per capita) (OECDstat (2017))")] <- "Health"
+colnames(data_lehe)[which(names(data_lehe) == "Life expectancy at birth, total (years)")] <- "Life"
+data_lehe$Pop <- data_lehe$`Population (historical estimates)`
+
+data_lehe$Health <- as.numeric(data_lehe$Health)
+data_lehe$Pop <- as.numeric(data_lehe$Pop)
+data_lehe$Life <- as.numeric(data_lehe$Life)
+data1 <- subset(data_lehe, data_lehe$Year==2015)
+data1 <-subset(data1, Continent=="Asia"| Continent=="North America"| Continent=="South America"| Continent=="Europe"| Continent=="Oceania")
+
+#add colourblind palatte
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+
+
+ggplot(subset(data1),
+       aes(x = Health,
+           y = Life,
+           color = Continent,
+           )) +
+  geom_point(aes(size = Pop), alpha = 0.7) + 
+  geom_text_repel(aes(label=Entity),hjust=0, vjust=0, size = 2.5) +
+  guides(size = "none", color = guide_legend(override.aes = list(shape = 15)))+
+  scale_size(range = c(.1,24))+
+   scale_colour_manual(values=cbPalette)+
+  labs(title = "Life expectancy vs. health expenditure",
+       subtitle = "2015",
+       x = "Health Expenditure(2010 int.-$)",
+       y = "Life Expectancy(years)")+
+  scale_y_continuous(breaks = (seq(70,82,2)),limits = c(70,84))+
+  scale_x_continuous(breaks = (seq(1000,8000,1000)), limits = c(1000,9000))+
+  theme_light()
 ```
 
 <br>
@@ -79,6 +173,67 @@ b) Using the complete dataset, reproduce the [connected scatter plot](https://cl
 
 ```{r}
 # YOUR CODE HERE
+
+data_2b <- subset(data_lehe, data_lehe$Year>1969)
+data_2b <- subset(data_2b, select = c(Entity, Year, Health, Life, Continent))
+data_2b$Continent[data_2b$Entity=="Germany"] <- "Europe"
+data_2b$Continent[data_2b$Entity=="Poland"] <- "Europe"
+data_2b$Continent[data_2b$Entity=="Netherlands"] <- "Europe"
+data_2b$Continent[data_2b$Entity=="France"] <- "Europe"
+data_2b$Continent[data_2b$Entity=="Greece"] <- "Europe"
+data_2b$Continent[data_2b$Entity=="Hungary"] <- "Europe"
+data_2b$Continent[data_2b$Entity=="Slovenia"] <- "Europe"
+data_2b$Continent[data_2b$Entity=="Czechia"] <- "Europe"
+data_2b$Continent[data_2b$Entity=="Portugal"] <- "Europe"
+data_2b$Continent[data_2b$Entity=="Finland"] <- "Europe"
+data_2b$Continent[data_2b$Entity=="Sweden"] <- "Europe"
+data_2b$Continent[data_2b$Entity=="Switzerland"] <- "Europe"
+data_2b$Continent[data_2b$Entity=="Luxembourg"] <- "Europe"
+data_2b$Continent[data_2b$Entity=="Austria"] <- "Europe"
+data_2b$Continent[data_2b$Entity=="Norway"] <- "Europe"
+data_2b$Continent[data_2b$Entity=="Belgium"] <- "Europe"
+data_2b$Continent[data_2b$Entity=="Estonia"] <- "Europe"
+data_2b$Continent[data_2b$Entity=="Ireland"] <- "Europe"
+data_2b$Continent[data_2b$Entity=="Denmark"] <- "Europe"
+data_2b$Continent[data_2b$Entity=="Iceland"] <- "Europe"
+data_2b$Continent[data_2b$Entity=="Spain"] <- "Europe"
+data_2b$Continent[data_2b$Entity=="Italy"] <- "Europe"
+data_2b$Continent[data_2b$Entity=="United Kingdom"] <- "Europe"
+
+data_2b$Continent[data_2b$Entity=="Japan"] <- "Asia"
+data_2b$Continent[data_2b$Entity=="Israel"] <- "Asia"
+
+data_2b$Continent[data_2b$Entity=="Canada"] <- "North America"
+data_2b$Continent[data_2b$Entity=="Mexico"] <- "North America"
+data_2b$Continent[data_2b$Entity=="United States"] <- "North America"
+
+data_2b$Continent[data_2b$Entity=="New Zealand"] <- "Oceania"
+data_2b$Continent[data_2b$Entity=="Australia"] <- "Oceania"
+
+data_2b$Continent[data_2b$Entity=="Chile"] <- "South America"
+
+data_2b <-subset(data_2b, Continent=="Asia"| Continent=="North America"| Continent=="South America"| Continent=="Europe"| Continent=="Oceania")
+
+
+
+ggplot(subset(data_2b),
+       aes(x = Health,
+           y = Life,
+           color = Continent,
+           group = Entity)) +
+  geom_line(size = 0.3)+ 
+  geom_point(size = 0.80) +
+  guides(size = "none", color = guide_legend(override.aes = list(shape = 15)))+
+  scale_size(range = c(.1,10))+
+   scale_colour_manual(values=cbPalette)+
+  labs(title = "Life expectancy vs. health expenditure",
+       subtitle = "1970 to 2015",
+       x = "Health Expenditure(2010 int.-$)",
+       y = "Life Expectancy(years)")+
+  scale_y_continuous(breaks = (seq(70,82,2)),limits = c(70,82))+
+  scale_x_continuous(breaks = (seq(1000,8000,1000)), limits = c(1000,9000))+
+  theme_light()
+
 ```
 
 
@@ -94,8 +249,35 @@ The file [`imdb_series_df.csv`](https://github.com/intro-to-data-science-21/assi
 
 ```{r}
 # YOUR CODE HERE
-```
+#plot comedy shows by year
 
+imdb <- read_csv("imdb_series_df.csv")
+
+imdb <- subset(imdb, imdb$series_title=="Friends")
+imdb <- subset(imdb, imdb$season_nr>=1 & imdb$season_nr<11)
+
+ggplot(data = imdb,
+        mapping = aes(x = num_votes ,
+                      y = avg_rating,
+                      color = as.factor(season_nr))) +
+  geom_point(size=0.2) +
+  geom_line() + 
+  scale_color_viridis_d() +
+ facet_wrap(~ season_nr) +
+   labs(x = "Number of votes", y = "Average rating",
+        color = "Season number", 
+        title = "Probable relationships between number of votes and average rating") +
+   theme(text = element_text(size = 10),
+          plot.title = element_text(size = 11),
+          axis.text=element_text(size=7.5),
+          legend.text = element_text(size =11))
+
+
+```
+The plot above shows us the relationship between average rating and number of votes for the show called "Friends" which was first released in 1994. We look at this relationship for all 10 seasons of the show. We explore this relationship in particular as IMDB counts individual votes cast by viewers for the show and converts into a weighted average which they then use as ratings. By plotting this on a multiple graphs, we can see the popularity of the show, which seasons were better or worse and which episodes were liked better.
+The data points on these graphs are the episodes of each season. We notice that the maximum number of votes/rating is for the season finale at the end of the last ever episode of more than 12,000 votes, owing to the popularity of the show. The season finale with the seconf highest rating was of Season 5.
+
+<br>
 
 
 
